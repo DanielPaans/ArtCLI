@@ -15,11 +15,38 @@ class Artwork:
         print(f"Artwork:\n {self.title}\n {self.place_of_origin}\n Artist:\n  {self.artist}")
 
 
-def main():
-    URL = "https://api.artic.edu/api/v1/artworks/51349"
-    artwork: Artwork = parse(request(URL))
-    artwork.print()
+API_PATH = "https://api.artic.edu/api/v1/artworks"
 
+
+def main():
+    arguments_handler(arguments())
+
+    # artwork: Artwork = parse(request(URL))
+    # artwork.print()
+
+def arguments_handler(args: dict):
+    request(create_url(args))
+
+    if args["save"] is not None: save_results()
+
+    if args["picture"] is not None: download_image()
+
+def create_url(args: dict):
+    URL = API_PATH
+
+    if args["query"] is not None:
+        URL + f"/search?q={args['query']}"
+
+    if args["fields"] is not None:
+        URL + f""
+
+    return URL + f"&limit={args['limit']}"
+
+def save_results():
+    pass
+
+def download_image():
+    pass
 
 def request(url: str):
     request = requests.get(url)
@@ -69,12 +96,8 @@ def arguments():
                     metavar="",
                     help="downloads the images to files with the title name in the current directory")
 
-    args = vars(ap.parse_args())
-
-    # display a friendly message to the user
-    print(f"Hi there {args['name']}, it's nice to meet you!")
+    return vars(ap.parse_args())
 
 
 if __name__ == '__main__':
-    arguments()
-    # main()
+    main()
