@@ -1,4 +1,5 @@
 import requests
+import argparse
 import json
 import os
 import time
@@ -36,5 +37,15 @@ def parse(response_object):
     )
 
 
+def argument():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-n", "--name", required=True, help="name of the user")
+    args = vars(ap.parse_args())
+
+    # display a friendly message to the user
+    print(f"Hi there {args['name']}, it's nice to meet you!")
+
+
 if __name__ == '__main__':
-    main()
+    argument()
+    # main()
