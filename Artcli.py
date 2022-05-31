@@ -4,9 +4,14 @@ import json
 import os
 import time
 
+# predefined
+API_PATH = "https://api.artic.edu/api/v1/artworks"
+
 
 class Artwork:
-    def __init__(self, _id: str, _title: str, _place_of_origin: str, _artist: str, _image_id: str, _iiif_url: str) -> None:
+    def __init__(self, _id: str, _title: str = None, _place_of_origin: str = None,
+                 _artist: str = None, _image_id: str = None, _iiif_url: str = None) -> None:
+
         self.id = _id
         self.title = _title
         self.place_of_origin = _place_of_origin
@@ -14,77 +19,88 @@ class Artwork:
         self.image_id = _image_id
         self.iiif_url = _iiif_url
 
-    def to_string(self):
-        return (f"Artwork: {self.title}\n"
-                f"From: {self.place_of_origin}\n"
-                f"Artist: {self.artist}\n")
+    def __str__(self):
+        string = ""
+        if self.title is not None: string += f"Artwork: {self.title}\n"
+        if self.place_of_origin is not None: string += f"From: {self.place_of_origin}\n"
+        if self.artist is not None: string += f"Artist: {self.artist}\n"
+
+        return string
 
 
-API_PATH = "https://api.artic.edu/api/v1/artworks"
-
-
-def main():
+# Functions
+def main() -> None:
     args = arguments()
-    results = parse_artworks(request(create_url(args)))
+    options = {"title": False, "place_of_origin": False, "artist": False, "picture": False}
 
-    if args["save"]:
-        print(f"results are saved at {save_results(results)}")
-        return
+    if args["fields"] is not None:
+        fields = "".join(args["fields"]).lower()
+        if "title" in fields:
+            options["title"] = True
+        if "origin" in fields:
+            options["place_of_origin"] = True
+        if "artist" in fields:
+            options["artist"] = True
+    else:
+        options.values = [True for _ in options]
+
+    options["picture"] = args["picture"]
+
+    results = parse_artworks(request(create_url(args)), options)
 
     if args["picture"]:
         print(f"{len([download_image(artwork) for artwork in results])} artworks downloaded")
         return
 
-    [print(artwork.to_string()) for artwork in results]
+    if args["save"]:
+        print(f"results are saved at {save_results(results)}")
+        return
+
+    [print(artwork) for artwork in results]
 
 
-def create_url(args: dict):
-    URL = API_PATH
+def create_url(args: dict) -> str:
+    url = API_PATH
 
     if args["query"] is not None:
-        URL += f"/search?q={args['query']}"
+        url += f"/search?q={args['query']}"
 
-    if args["fields"] is not None:
-        URL += f""
+    url += f"&limit={args['limit']}"
 
-    URL += f"&limit={args['limit']}"
-
-    return URL
+    return url
 
 
-def save_results(artworks: list[Artwork]):
-
+def save_results(artworks: list[Artwork]) -> str:
     filename = "artwork_data.txt"
     with open(filename, "w+") as f:
-        [f.write(artwork.to_string() + "\n") for artwork in artworks]
+        [f.write(str(artwork) + "\n") for artwork in artworks]
 
     return filename
 
 
-def download_image(artwork: Artwork):
+def download_image(artwork: Artwork) -> None:
     request_url = f"{artwork.iiif_url}/{artwork.image_id}/full/843,/0/default.jpg"
 
     with open(f'{artwork.title}.jpg', 'wb') as f:
         f.write(requests.get(request_url).content)
 
 
-def request(url: str):
+def request(url: str) -> json:
     request = requests.get(url)
     return request.json()
 
 
-def parse_artworks(response_object):
-
+def parse_artworks(response_object: json, options: dict) -> list[Artwork]:
     ids = retrieve_artwork_ids(response_object)
 
     artworks: list[Artwork] = []
     for id in ids:
-        artworks.append(parse_artwork(request(f"{API_PATH}/{id}")))
+        artworks.append(parse_artwork(request(f"{API_PATH}/{id}"), options))
 
     return artworks
 
 
-def retrieve_artwork_ids(response_object):
+def retrieve_artwork_ids(response_object: json) -> list[int]:
     artworks_data = response_object["data"]
 
     ids: list[str] = []
@@ -94,22 +110,26 @@ def retrieve_artwork_ids(response_object):
     return ids
 
 
-def parse_artwork(response_object):
+def parse_artwork(response_object: json, options: dict) -> Artwork:
     artwork_data: dict = response_object["data"]
     artwork_config: dict = response_object["config"]
 
-    return Artwork(
-        artwork_data["id"],
-        artwork_data["title"],
-        artwork_data["place_of_origin"],
-        artwork_data["artist_display"].replace("\n", ", "),
-        # I use the artist display, because I like the little more information you get then only the artist name.
-        artwork_data["image_id"],
-        artwork_config["iiif_url"]
-    )
+    artwork = Artwork(artwork_data["id"])
+
+    if options["title"]:
+        artwork.title = artwork_data["title"]
+    if options["place_of_origin"]:
+        artwork.place_of_origin = artwork_data["place_of_origin"]
+    if options["artist"]:
+        artwork.artist = artwork_data["artist_display"].replace("\n", ", ")
+    if options["picture"]:
+        artwork.image_id = artwork_data["image_id"]
+        artwork.iiif_url = artwork_config["iiif_url"]
+
+    return artwork
 
 
-def arguments():
+def arguments() -> dict:
     ap = argparse.ArgumentParser(prog="artcli", add_help=False,
                                  usage="%(prog)s [--help] [--limit LIMIT] [--query QUERY] "
                                        "[--fields FIELDS] [--save SAVE] [--picture PICTURE]")
@@ -131,7 +151,8 @@ def arguments():
     ap.add_argument("--fields",
                     "-f",
                     metavar="",
-                    help="NUMBER outputs determined number of results")
+                    nargs="+",
+                    help="STRING1 [STRING1, STRING2, STRING3] outputs only determined fields")
     ap.add_argument("--save",
                     "-s",
                     action="store_true",
