@@ -4,9 +4,8 @@ import json
 import os
 import time
 
-# predefined
+# Predefined
 API_PATH = "https://api.artic.edu/api/v1/artworks"
-
 
 class Artwork:
     def __init__(self, _id: str, _title: str = None, _place_of_origin: str = None,
@@ -28,7 +27,7 @@ class Artwork:
         return string
 
 
-# Functions
+# Main functions
 def main() -> None:
     args = arguments()
     options = {"title": False, "place_of_origin": False, "artist": False, "picture": False}
@@ -57,76 +56,6 @@ def main() -> None:
         return
 
     [print(artwork) for artwork in results]
-
-
-def create_url(args: dict) -> str:
-    url = API_PATH
-
-    if args["query"] is not None:
-        url += f"/search?q={args['query']}"
-
-    url += f"&limit={args['limit']}"
-
-    return url
-
-
-def save_results(artworks: list[Artwork]) -> str:
-    filename = "artwork_data.txt"
-    with open(filename, "w+") as f:
-        [f.write(str(artwork) + "\n") for artwork in artworks]
-
-    return filename
-
-
-def download_image(artwork: Artwork) -> None:
-    request_url = f"{artwork.iiif_url}/{artwork.image_id}/full/843,/0/default.jpg"
-
-    with open(f'{artwork.title}.jpg', 'wb') as f:
-        f.write(requests.get(request_url).content)
-
-
-def request(url: str) -> json:
-    request = requests.get(url)
-    return request.json()
-
-
-def parse_artworks(response_object: json, options: dict) -> list[Artwork]:
-    ids = retrieve_artwork_ids(response_object)
-
-    artworks: list[Artwork] = []
-    for id in ids:
-        artworks.append(parse_artwork(request(f"{API_PATH}/{id}"), options))
-
-    return artworks
-
-
-def retrieve_artwork_ids(response_object: json) -> list[int]:
-    artworks_data = response_object["data"]
-
-    ids: list[str] = []
-    for artwork in artworks_data:
-        ids.append(artwork["id"])
-
-    return ids
-
-
-def parse_artwork(response_object: json, options: dict) -> Artwork:
-    artwork_data: dict = response_object["data"]
-    artwork_config: dict = response_object["config"]
-
-    artwork = Artwork(artwork_data["id"])
-
-    if options["title"]:
-        artwork.title = artwork_data["title"]
-    if options["place_of_origin"]:
-        artwork.place_of_origin = artwork_data["place_of_origin"]
-    if options["artist"]:
-        artwork.artist = artwork_data["artist_display"].replace("\n", ", ")
-    if options["picture"]:
-        artwork.image_id = artwork_data["image_id"]
-        artwork.iiif_url = artwork_config["iiif_url"]
-
-    return artwork
 
 
 def arguments() -> dict:
@@ -163,6 +92,77 @@ def arguments() -> dict:
                     help="downloads the images to files with the title name in the current directory")
 
     return vars(ap.parse_args())
+
+
+# Util functions
+def request(url: str) -> json:
+    request = requests.get(url)
+    return request.json()
+
+
+def create_url(args: dict) -> str:
+    url = API_PATH
+
+    if args["query"] is not None:
+        url += f"/search?q={args['query']}"
+
+    url += f"&limit={args['limit']}"
+
+    return url
+
+
+def parse_artwork(response_object: json, options: dict) -> Artwork:
+    artwork_data: dict = response_object["data"]
+    artwork_config: dict = response_object["config"]
+
+    artwork = Artwork(artwork_data["id"])
+
+    if options["title"]:
+        artwork.title = artwork_data["title"]
+    if options["place_of_origin"]:
+        artwork.place_of_origin = artwork_data["place_of_origin"]
+    if options["artist"]:
+        artwork.artist = artwork_data["artist_display"].replace("\n", ", ")
+    if options["picture"]:
+        artwork.image_id = artwork_data["image_id"]
+        artwork.iiif_url = artwork_config["iiif_url"]
+
+    return artwork
+
+
+def parse_artworks(response_object: json, options: dict) -> list[Artwork]:
+    ids = retrieve_artwork_ids(response_object)
+
+    artworks: list[Artwork] = []
+    for id in ids:
+        artworks.append(parse_artwork(request(f"{API_PATH}/{id}"), options))
+
+    return artworks
+
+
+def retrieve_artwork_ids(response_object: json) -> list[int]:
+    artworks_data = response_object["data"]
+
+    ids: list[str] = []
+    for artwork in artworks_data:
+        ids.append(artwork["id"])
+
+    return ids
+
+
+def save_results(artworks: list[Artwork]) -> str:
+    filename = "artwork_data.txt"
+    with open(filename, "w+") as f:
+        [f.write(str(artwork) + "\n") for artwork in artworks]
+
+    return filename
+
+
+def download_image(artwork: Artwork) -> None:
+    request_url = f"{artwork.iiif_url}/{artwork.image_id}/full/843,/0/default.jpg"
+
+    with open(f'{artwork.title}.jpg', 'wb') as f:
+        f.write(requests.get(request_url).content)
 
 
 if __name__ == '__main__':
