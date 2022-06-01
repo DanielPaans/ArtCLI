@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import time
+import datetime
 
 # Predefined
 API_PATH = "https://api.artic.edu/api/v1/artworks"
@@ -41,7 +42,7 @@ def main() -> None:
         if "artist" in fields:
             options["artist"] = True
     else:
-        options.values = [True for _ in options]
+        options = {option: True for option in options}
 
     options["picture"] = args["picture"]
 
@@ -151,7 +152,7 @@ def retrieve_artwork_ids(response_object: json) -> list[int]:
 
 
 def save_results(artworks: list[Artwork]) -> str:
-    filename = "artwork_data.txt"
+    filename = f"artwork_data_{datetime.datetime.now().strftime('%d%m%y_%H%M%S')}.txt"
     with open(filename, "w+") as f:
         [f.write(str(artwork) + "\n") for artwork in artworks]
 
