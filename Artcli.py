@@ -2,6 +2,8 @@ import requests
 import argparse
 import json
 import os
+import sys
+import subprocess
 import time
 import datetime
 
@@ -31,6 +33,7 @@ class Artwork:
 # Main functions
 def main() -> None:
     args = arguments()
+
     options = {"title": False, "place_of_origin": False, "artist": False, "picture": False}
 
     if args["fields"] is not None:
@@ -91,6 +94,10 @@ def arguments() -> dict:
                     "-p",
                     action="store_true",
                     help="downloads the images to files with the title name in the current directory")
+
+    if len(sys.argv) == 1:
+        ap.print_help(sys.stderr)
+        sys.exit(1)
 
     return vars(ap.parse_args())
 
